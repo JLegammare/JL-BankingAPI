@@ -15,7 +15,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from api import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    #endpoinst for testing
+    path('api/test', views.test_get, name='test_get'),
+    path('api/test/<int:id>', views.test_get_path_param, name='test_get_path_param'),
+    path('api/test/query', views.test_get_query_param, name='test_get_query_param'),
+    path('api/test/body', views.test_post_body, name='test_post_body'),
+    path('api/test/suma', views.test_suma, name='suma'),
+    path('api/test/suma_mas', views.test_suma_mas, name='suma_mas'),
+    path('api/test/bueno', views.test_bueno, name='test_bueno'),
+
 ]
