@@ -27,5 +27,6 @@ urlpatterns = [
     path('api/test/suma', views.test_suma, name='suma'),
     path('api/test/suma_mas', views.test_suma_mas, name='suma_mas'),
     path('api/test/bueno', views.test_bueno, name='test_bueno'),
+    path('api/accounts', views.accounts_view, name="accounts_view")
 
 ]
