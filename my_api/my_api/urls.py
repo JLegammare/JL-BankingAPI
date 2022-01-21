@@ -16,10 +16,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from api import views
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    #endpoinst for testing
+    # endpoinst for testing
     path('api/test', views.test_get, name='test_get'),
     path('api/test/<int:id>', views.test_get_path_param, name='test_get_path_param'),
     path('api/test/query', views.test_get_query_param, name='test_get_query_param'),
@@ -27,6 +31,8 @@ urlpatterns = [
     path('api/test/suma', views.test_suma, name='suma'),
     path('api/test/suma_mas', views.test_suma_mas, name='suma_mas'),
     path('api/test/bueno', views.test_bueno, name='test_bueno'),
-    path('api/accounts', views.accounts_view, name="accounts_view")
-
+    #production endpoints
+    path('api/accounts', views.accounts_view, name="accounts_view"),
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
