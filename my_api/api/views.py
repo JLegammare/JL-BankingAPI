@@ -3,11 +3,14 @@
 # imports
 import json
 
+from django.contrib.auth.models import Group
 from rest_framework import status
-from rest_framework.decorators import api_view
 from rest_framework.response import Response
-# Importamos nuestros forms y modelos
 from api import forms, models, serializers
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from api.permissions import IsAdmin
+from api import constants
 
 
 @api_view(['GET'])
@@ -68,8 +71,8 @@ def test_bueno(request):
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-# Esta función es la que registramos en los urls
 @api_view(['POST', 'GET'])
+@permission_classes([AllowAny])
 def accounts_view(request):
     # Hacemos el caso de un GET y el caso de un POST
     if request.method == 'GET':
@@ -86,6 +89,7 @@ def create_account(request):
     if form.is_valid():
         # Guardamos el usuario que el form quiere crear, el .save() devuelve al usuario creado
         user = form.save()
+        user.groups.add(Group.objects.get(name=constants.GROUP_USER))
         # Creamos la Account que va con el usuario, y le pasamos el usuario que acabamos de crear
         models.Account.objects.create(user=user)
         # Respondemos con los datos del serializer, le pasamos nuestro user y le decimos que es uno solo, y depués nos quedamos con la "data" del serializer
@@ -94,7 +98,26 @@ def create_account(request):
 
 
 def get_accounts(request):
+    # Si no está autenticado, devolvemos un 401
+    if not request.user.is_authenticated:
+        return Response(status=status.HTTP_401_UNAUTHORIZED)
     # Obtenemos todos los usuarios y los serializamos
     users = serializers.UserSerializer(models.User.objects.all(), many=True).data
     # Agregamos los datos a la respuesta
     return Response(users, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAdmin])  # Definimos que tiene que ser un admin
+def user_delete(request, id):
+    # No dejamos que un usuario se borre a si mismo
+    if request.user.id == id:
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = models.User.objects.get(pk=id)
+        user.delete()
+        # Devolvemos que no hay contenido porque lo pudimos borrar
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except models.User.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
