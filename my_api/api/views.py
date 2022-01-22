@@ -12,6 +12,7 @@ from api.permissions import IsAdmin, IsUser
 from api import forms, models, serializers, constants, pagination, extractor
 from django.core.paginator import Paginator, EmptyPage
 from django.db import transaction, IntegrityError
+from django.db.models import Q
 
 
 @api_view(['GET'])
@@ -128,7 +129,7 @@ def get_accounts(request):
         # Serializamos a los usuarios
         serializer = serializers.UserSerializer(query_data, many=True)
         # Agregamos a los usuarios a la respuesta
-        resp = Response(serializer.data,status=status.HTTP_200_OK)
+        resp = Response(serializer.data, status=status.HTTP_200_OK)
         # Agregamos headers de paginación a la respuesta
         resp = pagination.add_paging_to_response(
             request, resp, query_data, page, query_paginator.num_pages)
@@ -155,8 +156,51 @@ def user_delete(request, id):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
 
-@api_view(['POST'])
+@api_view(['POST', 'GET'])
 @permission_classes([IsUser])
+def transaction_view(request):
+    if request.method == 'POST':
+        return create_transaction(request)
+    else:
+        return get_transactions(request)
+
+
+def get_transactions(request):
+    if request.user.is_anonymous:
+        return Response(status=status.HTTP_401_UNAUTHORIZED)
+    inicio, fin, err = extractor.extract_limits_from_request(request=request)
+    print(str(inicio))
+    print(str(fin))
+    if err != None:
+        return err
+
+    page, page_size, err = extractor.extract_paging_from_request(request=request)
+
+    if err != None:
+        return err
+
+    if inicio != None and fin != None:
+        # Hacemos 2 filtros, primero vemos transacciones del usuario en donde es destino u origen
+        # Después filtramos por fechas y ordenamos por id descendente
+        queryset = models.Transaction.objects.filter(
+            (Q(destino=request.user) | Q(origen=request.user)), fecha_realizada__range=(inicio, fin)).order_by('-id')
+    else:
+        # Hacemos 1 solo filtro, con transacciones del usuario
+        queryset = models.Transaction.objects.filter(
+            (Q(destino=request.user) | Q(origen=request.user))).order_by('-id')
+
+    try:
+        transactions_paginator = Paginator(queryset,page_size)
+        transactions_page = transactions_paginator.page(page)
+        serializer = serializers.TransactionSerializer(transactions_page,many=True)
+        resp = Response(serializer.data, status=status.HTTP_200_OK)
+        resp = pagination.add_paging_to_response(
+            request, resp, transactions_page, page, transactions_paginator.num_pages)
+        return resp
+    except EmptyPage:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+
 def create_transaction(request):
     # Creamos el form
     form = forms.CreateTransactionForm(request.POST)
@@ -185,4 +229,3 @@ def create_transaction(request):
         except IntegrityError:
             return Response({"error": "Error transfiriendo fondos"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
-
