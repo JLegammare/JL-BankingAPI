@@ -37,4 +37,5 @@ urlpatterns = [
     path('api/accounts', views.accounts_view, name="accounts_view"),
     path('api/accounts/<int:id>', views.user_delete, name="user_delete"),
     path('api/transactions', views.create_transaction, name="create_transaction")
+    #TODO: endpoint para agregar saldo
 ]

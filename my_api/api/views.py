@@ -6,11 +6,11 @@ import json
 from django.contrib.auth.models import Group
 from rest_framework import status
 from rest_framework.response import Response
-from api import forms, models, serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from api.permissions import IsAdmin, IsUser
-from api import constants
+from api import forms, models, serializers, constants, pagination, extractor
+from django.core.paginator import Paginator, EmptyPage
 from django.db import transaction, IntegrityError
 
 
@@ -100,13 +100,41 @@ def create_account(request):
 
 
 def get_accounts(request):
-    # Si no está autenticado, devolvemos un 401
-    if not request.user.is_authenticated:
+    # Chequear que no sea anónimo
+    if request.user.is_anonymous:
         return Response(status=status.HTTP_401_UNAUTHORIZED)
-    # Obtenemos todos los usuarios y los serializamos
-    users = serializers.UserSerializer(models.User.objects.all(), many=True).data
-    # Agregamos los datos a la respuesta
-    return Response(users, status=status.HTTP_200_OK)
+    # Extraemos el query param, ponemos None como default
+    query = request.GET.get('q', None)
+    # Extraemos los query de paginación, y si hay un error devolvemos eso
+    page, page_size, err = extractor.extract_paging_from_request(request=request)
+    if err is not None:
+        return err
+
+    # Si hay query, agregamos el filtro, sino usa todos
+    if query != None:
+        # Hacemos icontains sobre el username, y ordenamos por id, el "-" indica que es descendiente
+        queryset = models.User.objects.filter(
+            username__icontains=query).order_by('-id')
+    else:
+        # Definimos el set como todos los usuarios
+        queryset = models.User.objects.all().order_by('-id')
+
+    # Usamos un try catch por si la página está vacía
+    try:
+        # Convertimos a Paginator
+        query_paginator = Paginator(queryset, page_size)
+        # Nos quedamos con la página que queremos
+        query_data = query_paginator.page(page)
+        # Serializamos a los usuarios
+        serializer = serializers.UserSerializer(query_data, many=True)
+        # Agregamos a los usuarios a la respuesta
+        resp = Response(serializer.data,status=status.HTTP_200_OK)
+        # Agregamos headers de paginación a la respuesta
+        resp = pagination.add_paging_to_response(
+            request, resp, query_data, page, query_paginator.num_pages)
+        return resp
+    except EmptyPage:
+        return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['DELETE'])
