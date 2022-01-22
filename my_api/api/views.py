@@ -8,9 +8,10 @@ from rest_framework import status
 from rest_framework.response import Response
 from api import forms, models, serializers
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from api.permissions import IsAdmin
+from rest_framework.permissions import AllowAny
+from api.permissions import IsAdmin, IsUser
 from api import constants
+from django.db import transaction, IntegrityError
 
 
 @api_view(['GET'])
@@ -92,7 +93,8 @@ def create_account(request):
         user.groups.add(Group.objects.get(name=constants.GROUP_USER))
         # Creamos la Account que va con el usuario, y le pasamos el usuario que acabamos de crear
         models.Account.objects.create(user=user)
-        # Respondemos con los datos del serializer, le pasamos nuestro user y le decimos que es uno solo, y depués nos quedamos con la "data" del serializer
+        # Respondemos con los datos del serializer, le pasamos nuestro user y le decimos que es uno solo,
+        # y depués nos quedamos con la "data" del serializer
         return Response(serializers.UserSerializer(user, many=False).data, status=status.HTTP_201_CREATED)
     return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -116,8 +118,43 @@ def user_delete(request, id):
 
     try:
         user = models.User.objects.get(pk=id)
-        user.delete()
+        # Borrado logico, no fisico
+        user.is_active = False
+        user.save()
         # Devolvemos que no hay contenido porque lo pudimos borrar
         return Response(status=status.HTTP_204_NO_CONTENT)
     except models.User.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsUser])
+def create_transaction(request):
+    # Creamos el form
+    form = forms.CreateTransactionForm(request.POST)
+    # Vemos si es válido
+    if form.is_valid():
+        # No se chequea el usuario destino porque eso se valida en el form
+        destino = models.User.objects.get(id=form.cleaned_data['destino'])
+        cantidad = form.cleaned_data['cantidad']
+        # Usamos un bloque transaccional para evitar problemas
+        try:
+            with transaction.atomic():
+                # Vemos que tenga plata suficiente
+                if cantidad > request.user.account.balance:
+                    return Response({"error": "Balance insuficiente"}, status=status.HTTP_400_BAD_REQUEST)
+                # Creamos la transaccion
+                tx = models.Transaction(origen=request.user, destino=destino, cantidad=cantidad)
+                # Actualizamos los balances
+                request.user.account.balance -= cantidad
+                destino.account.balance += cantidad
+                # Guardamos los cambios
+                tx.save()
+                request.user.account.save()
+                destino.account.save()
+                # Nuestra respuesta
+                return Response(serializers.TransactionSerializer(tx, many=False).data, status=status.HTTP_201_CREATED)
+        except IntegrityError:
+            return Response({"error": "Error transfiriendo fondos"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
+

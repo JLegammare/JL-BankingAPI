@@ -35,5 +35,6 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/accounts', views.accounts_view, name="accounts_view"),
-    path('api/accounts/<int:id>', views.user_delete, name="user_delete")
+    path('api/accounts/<int:id>', views.user_delete, name="user_delete"),
+    path('api/transactions', views.create_transaction, name="create_transaction")
 ]

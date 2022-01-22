@@ -1,11 +1,9 @@
-# Importamos la clase de form para creación de usuario
 from django.contrib.auth.forms import UserCreationForm
-# Importamos el user de Django
 from django.contrib.auth.models import User
-# Importamos el error de validación
 from django.forms import ValidationError
-# Importamos nuestros modelos
-from . import models
+from django import forms
+from . import models, constants
+
 
 
 # Form para crear un usuario, tiene que extender a UserCreationForm esta form especial
@@ -32,3 +30,25 @@ class CreateUserForm(UserCreationForm):
             return self.cleaned_data.get('email')
         except models.User.DoesNotExist:
             return self.cleaned_data.get('email')
+
+# Nuestra form extiende de "Form" y no tiene un modelo asociado
+class CreateTransactionForm(forms.Form):
+    # Campo con el ID de la cuenta destino, no puede ser menor que 1
+    destino = forms.IntegerField(min_value=1)
+    # Campo para la cantidad, no puede ser menor que 0
+    cantidad = forms.FloatField(min_value=0)
+
+    def clean_destino(self):
+        try:
+            # Buscamos usuarios que tengan ese id
+            user = models.User.objects.get(id=self.cleaned_data.get('destino'))
+            # Si el usuario no es user, no dejamos que se haga
+            if user == None:
+                raise ValidationError("No existe el destinatario.")
+            elif not user.is_active:
+                raise ValidationError("No existe el destinatario.")
+            elif user.groups.all()[0].name != constants.GROUP_USER:
+                raise ValidationError("El destinatario no es un usuario.")
+            return self.cleaned_data.get('destino')
+        except models.User.DoesNotExist:
+            raise ValidationError("No existe el destinatario.")

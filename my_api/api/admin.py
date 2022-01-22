@@ -3,15 +3,13 @@ from django.contrib import admin
 # Register your models here.
 
 from django.contrib import admin
-# Importamos nuestros modelos
 from api import models, constants
-# Importamos el modelo de Group
 from django.contrib.auth.models import Group
-# Importamos el error que no se pudo hacer la operación
 from django.db.utils import OperationalError
 
 # Registramos nuestro modelo
 admin.site.register(models.Account)
+admin.site.register(models.Transaction)
 
 try:
     group, created = Group.objects.get_or_create(name=constants.GROUP_ADMIN)
