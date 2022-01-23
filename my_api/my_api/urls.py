@@ -32,8 +32,7 @@ urlpatterns = [
     path('api/test/suma_mas', views.test_suma_mas, name='suma_mas'),
     path('api/test/bueno', views.test_bueno, name='test_bueno'),
     # production endpoints, tener cuidado con la precedencia
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/login', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/accounts', views.accounts_view, name="accounts_view"),
     path('api/accounts/<int:id>', views.user_specific_view, name="user_view"),
     path('api/transactions', views.transaction_view, name="transaction_view"),
