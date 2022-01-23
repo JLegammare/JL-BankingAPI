@@ -14,5 +14,5 @@ To run this project after you downloaded it you have to follow this steps:
 > -`EMAIL_HOST_USER = 'your_email@gmail.com'`<br/>-`EMAIL_HOST_PASSWORD = 'your_password'`<br/> -`DEFAULT_FROM_EMAIL = 'JLBankingAPI<your_email@gmail.com>'`
 6. Run the following command to make an initial setup
 >python manage.py makemigrations && python manage.py migrate
-7. Run the server standing on `/JLBanking_api/my_api` with the following command
+7. Standing on `/JLBanking_api/my_api` run the server with the following command
 >python manage.py runserver
