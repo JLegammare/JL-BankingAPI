@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -169,3 +170,28 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+MAILER_EMAIL_BACKEND = EMAIL_BACKEND
+# Host del mail, gmail en este caso
+EMAIL_HOST = 'smtp.gmail.com'
+# Puerto de gmail
+EMAIL_PORT = 587
+# Indicamos que use TLS
+EMAIL_USE_TLS = True
+# Desactivamos SSL
+EMAIL_USE_SSL = False
+# Usuario
+EMAIL_HOST_USER = 'jltestemail77@gmail.com'
+# Contraseña, usamos os.environ para evitar mostrarla, es más seguro
+EMAIL_HOST_PASSWORD = os.environ.get('MAIL_PASS')
+# Indicamos de donde sale el mail, es "NOMBRE<DIRECCION>"
+DEFAULT_FROM_EMAIL = 'JLBankingAPI<jltestemail77@gmail.com>'
+# Asunto del mail
+SUBJECT = 'Verificá tu Cuenta'
+# De donde salen los templates
+SETTINGS_PATH = os.path.normpath(os.path.dirname(__file__))
+TEMPLATE_DIRS = (
+    os.path.join(SETTINGS_PATH, 'templates'),
+)
