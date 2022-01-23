@@ -22,3 +22,20 @@ class IsUser(BasePermission):
             return False
         return request.user.groups.all()[0].name == constants.GROUP_USER
 
+
+class IsOwner(BasePermission):
+    message = "No es el dueño del perfil"
+
+    def has_permission(self, request, view):
+        # Vemos si viene el ID dentro de los parámetros
+        if 'id' in view.kwargs:
+            try:
+                # Recuperamos el user basado en lo que viene en la request
+                user = models.User.objects.get(id=view.kwargs['id'])
+                # Vemos que sea el mismo user que hizo la request
+                return request.user == user
+            except models.User.DoesNotExist:
+                return False
+        return False
+
+

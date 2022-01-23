@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-from api.permissions import IsAdmin, IsUser
+from api.permissions import IsAdmin, IsUser, IsOwner
 from api import forms, models, serializers, constants, pagination, extractor
 from django.core.paginator import Paginator, EmptyPage
 from django.db import transaction, IntegrityError
@@ -138,21 +138,48 @@ def get_accounts(request):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
 
-@api_view(['DELETE'])
-@permission_classes([IsAdmin])  # Definimos que tiene que ser un admin
+@api_view(['DELETE', 'GET'])
+@permission_classes([IsOwner | IsAdmin])
+def user_specific_view(request, id):
+    # Hacemos el caso de un GET y el caso de un DELETE
+    if request.method == 'GET':
+        return get_user(request, id)
+    else:
+        return user_delete(request, id)
+
+
+def get_user(request, id):
+    # Necesitamos un try-catch porque tal vez el usuario no existe
+    try:
+        # Buscamos al usuario por ID
+        user = models.User.objects.get(pk=id)
+        # Serializamos al user
+        return Response(serializers.UserDetailsSerializer(user, many=False).data, status=status.HTTP_200_OK)
+    except models.User.DoesNotExist:
+        # Si no existe le damos un 404
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+
 def user_delete(request, id):
     # No dejamos que un usuario se borre a si mismo
+    # Vemos si el ID del usuario de la request es igual al que se manda en la URL
+    # Vemos de asegurarnos que sea un admin
     if request.user.id == id:
         return Response(status=status.HTTP_400_BAD_REQUEST)
+    elif request.user.groups.all()[0].name != constants.GROUP_ADMIN:
+        return Response(status=status.HTTP_403_FORBIDDEN)
 
+    # Necesitamos un try-catch porque tal vez el usuario no existe
     try:
+        # Buscamos al usuario por ID
         user = models.User.objects.get(pk=id)
-        # Borrado logico, no fisico
+        # Hacemos que no esté activo en vez de borrado físico
         user.is_active = False
         user.save()
         # Devolvemos que no hay contenido porque lo pudimos borrar
         return Response(status=status.HTTP_204_NO_CONTENT)
     except models.User.DoesNotExist:
+        # Si no existe le damos un 404
         return Response(status=status.HTTP_404_NOT_FOUND)
 
 
